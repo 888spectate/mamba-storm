@@ -12,7 +12,7 @@ from storm.exceptions import IntegrityError, DisconnectionError
 from twisted.internet.threads import deferToThreadPool
 
 
-RETRIABLE_ERRORS = (DisconnectionError, IntegrityError)
+RETRIABLE_ERRORS = (DisconnectionError, )
 try:
     from psycopg2.extensions import TransactionRollbackError
     RETRIABLE_ERRORS = RETRIABLE_ERRORS + (TransactionRollbackError,)
