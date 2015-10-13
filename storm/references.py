@@ -141,8 +141,8 @@ class Reference(object):
         if local is None:
             return self
 
-        remote = self._relation.get_remote(local)
-        if remote is not None:
+        remote, is_cached = self._relation.get_remote_from_cache(local)
+        if is_cached:
             return remote
 
         if self._relation.local_variables_are_none(local):
@@ -477,6 +477,10 @@ class Relation(object):
         self._r_to_l = {}
 
     def get_remote(self, local):
+        obj, valid = self._get_remote_from_cache(self, local)
+        return obj
+
+    def get_remote_from_cache(self, local):
         """Return the remote object for this relation, using the local cache.
 
         If the object in the cache is invalidated, we validate it again to
@@ -486,14 +490,14 @@ class Relation(object):
         try:
             obj = local_info[self]["remote"]
         except KeyError:
-            return None
+            return None, False
         remote_info = get_obj_info(obj)
         if remote_info.get("invalidated"):
             try:
                 Store.of(obj)._validate_alive(remote_info)
             except LostObjectError:
-                return None
-        return obj
+                return None, False
+        return obj, True
 
     def get_where_for_remote(self, local):
         """Generate a column comparison expression for reference properties.
