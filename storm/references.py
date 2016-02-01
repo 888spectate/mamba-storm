@@ -142,7 +142,7 @@ class Reference(object):
             return self
 
         remote, is_cached = self._relation.get_remote_from_cache(local)
-        if is_cached:
+        if is_cached:  # remote may be None
             return remote
 
         if self._relation.local_variables_are_none(local):
@@ -162,6 +162,8 @@ class Reference(object):
 
         if remote is not None:
             self._relation.link(local, remote)
+        else:
+            self._set_null_cache(local)  # TODO
 
         return remote
 
