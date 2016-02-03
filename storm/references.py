@@ -190,8 +190,9 @@ class Reference(object):
             try:
                 remote = get_obj_info(remote).get_obj()
             except ClassInfoError:
-                pass # It might fail when remote is a tuple or a raw value.
+                pass  # It might fail when remote is a tuple or a raw value.
             self._relation.link(local, remote, True)
+            self._relation.is_remote_null = False
 
     def _build_relation(self):
         resolver = PropertyResolver(self, self._cls)
@@ -433,6 +434,7 @@ class Proxy(ComparableExpr):
     def variable_factory(self):
         return self._remote_prop.variable_factory
 
+
 @compile.when(Proxy)
 def compile_proxy(compile, proxy, state):
     # Inject the join between the table of the class holding the proxy
@@ -476,23 +478,28 @@ class Relation(object):
         self._l_to_r = {}
         self._r_to_l = {}
 
+        self.is_remote_null = False
+
     def get_remote(self, local):
         """Return the remote object for this relation, using the local cache.
 
         If the object in the cache is invalidated, we validate it again to
         check if it's still in the database.
         """
+        if self.is_remote_null:
+            return
         local_info = get_obj_info(local)
         try:
             obj = local_info[self]["remote"]
         except KeyError:
-            return None
+            return
         remote_info = get_obj_info(obj)
         if remote_info.get("invalidated"):
             try:
                 Store.of(obj)._validate_alive(remote_info)
             except LostObjectError:
-                return None
+                self.is_remote_null = True
+                return
         return obj
 
     def get_where_for_remote(self, local):
