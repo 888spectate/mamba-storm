@@ -156,9 +156,8 @@ class Reference(object):
             return None
 
         if self._relation.remote_key_is_primary:
-            if not is_cached_as_null:
-                remote = store.get(self._relation.remote_cls,
-                                   self._relation.get_local_variables(local))
+            remote = store.get(self._relation.remote_cls,
+                               self._relation.get_local_variables(local))
         else:
             where = self._relation.get_where_for_remote(local)
             result = store.find(self._relation.remote_cls, where)
