@@ -141,7 +141,10 @@ class Reference(object):
         if local is None:
             return self
 
-        remote = self._relation.get_remote(local)
+        remote, is_cached_as_null = self._relation._get_remote_with_cached(local)
+        if is_cached_as_null:
+            return None
+
         if remote is not None:
             return remote
 
@@ -162,6 +165,12 @@ class Reference(object):
 
         if remote is not None:
             self._relation.link(local, remote)
+
+        if remote is None:
+            self._relation.is_remote_null.add(local)
+        else:
+            if remote in self._relation.is_remote_null:
+                self._relation.is_remote_null.remove(local)
 
         return remote
 
@@ -190,8 +199,15 @@ class Reference(object):
             try:
                 remote = get_obj_info(remote).get_obj()
             except ClassInfoError:
-                pass # It might fail when remote is a tuple or a raw value.
+                pass  # It might fail when remote is a tuple or a raw value.
             self._relation.link(local, remote, True)
+
+        if remote is None:
+            self._relation.is_remote_null.add(local)
+        else:
+            if remote in self._relation.is_remote_null:
+                self._relation.is_remote_null.remove(local)
+
 
     def _build_relation(self):
         resolver = PropertyResolver(self, self._cls)
@@ -433,6 +449,7 @@ class Proxy(ComparableExpr):
     def variable_factory(self):
         return self._remote_prop.variable_factory
 
+
 @compile.when(Proxy)
 def compile_proxy(compile, proxy, state):
     # Inject the join between the table of the class holding the proxy
@@ -476,23 +493,31 @@ class Relation(object):
         self._l_to_r = {}
         self._r_to_l = {}
 
+        self.is_remote_null = set()
+
+    def _get_remote_with_cached(self, local):
+        local_info = get_obj_info(local)
+        try:
+            obj = local_info[self]["remote"]
+        except KeyError:
+            return None, (local in self.is_remote_null)
+        remote_info = get_obj_info(obj)
+        if remote_info.get("invalidated"):
+            try:
+                Store.of(obj)._validate_alive(remote_info)
+                self.is_remote_null.remove(local)
+            except LostObjectError:
+                self.is_remote_null.add(local)
+                return None, True  # yes, its None
+        return obj, (local in self.is_remote_null)
+
     def get_remote(self, local):
         """Return the remote object for this relation, using the local cache.
 
         If the object in the cache is invalidated, we validate it again to
         check if it's still in the database.
         """
-        local_info = get_obj_info(local)
-        try:
-            obj = local_info[self]["remote"]
-        except KeyError:
-            return None
-        remote_info = get_obj_info(obj)
-        if remote_info.get("invalidated"):
-            try:
-                Store.of(obj)._validate_alive(remote_info)
-            except LostObjectError:
-                return None
+        obj, valid = self._get_remote_with_cached(local)
         return obj
 
     def get_where_for_remote(self, local):

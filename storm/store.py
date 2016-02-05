@@ -671,9 +671,9 @@ class Store(object):
         where = compare_columns(obj_info.cls_info.primary_key,
                                 obj_info["primary_vars"])
         result = self._connection.execute(Select(SQLRaw("1"), where))
+        obj_info.pop("invalidated", None)
         if not result.get_one():
             raise LostObjectError("Object is not in the database anymore")
-        obj_info.pop("invalidated", None)
 
     def _load_object(self, cls_info, result, values):
         # _set_values() need the cls_info columns for the class of the

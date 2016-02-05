@@ -5331,6 +5331,49 @@ class StoreTest(object):
         self.store.commit()
         self.assertEqual(bar.foo, None)
 
+    def test_null_remote_is_cached(self):
+        """
+        When an object references another one using its primary key, but this
+        value doesnt exists - we don't have to fetch db every time to check if
+        it exists
+        """
+        class BarOnRemote(object):
+            __storm_table__ = "bar"
+            foo_id = Int(primary=True)
+            foo = Reference(foo_id, Foo.id, on_remote=True)
+
+        def counted(fn):
+
+            def wrapper(*args, **kwargs):
+                wrapper.called += 1
+                return fn(*args, **kwargs)
+
+            wrapper.called = 0
+            wrapper.__name__ = fn.__name__
+            return wrapper
+
+        self.store._validate_alive = counted(self.store._validate_alive)
+        foo = self.store.get(Foo, 10)
+        bar = self.store.get(BarOnRemote, 10)
+
+        self.assertEqual(bar.foo, foo)
+        self.store.execute("DELETE FROM foo WHERE id = 10")
+        self.store.commit()
+        self.assertEqual(self.store._validate_alive.called, 0)
+        self.assertEqual(bar.foo, None)
+        self.assertEqual(self.store._validate_alive.called, 1)
+        self.assertEqual(bar.foo, None)  # no db hit here
+        self.assertEqual(self.store._validate_alive.called, 1)
+
+        # restore the value
+        self.store.execute("INSERT INTO foo VALUES (10, 'test')")
+        self.store.commit()
+        bar.foo = foo
+        self.assertEqual(bar.foo, foo)
+        self.assertEqual(self.store._validate_alive.called, 2)
+        self.assertEqual(bar.foo, foo)  # no db hit here
+        self.assertEqual(self.store._validate_alive.called, 2)
+
     def test_invalidate_and_get_object(self):
         foo = self.store.get(Foo, 20)
         self.store.invalidate(foo)
