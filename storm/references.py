@@ -165,7 +165,12 @@ class Reference(object):
 
         if remote is not None:
             self._relation.link(local, remote)
-        self._relation.is_remote_null = remote is None
+
+        if remote is None:
+            self._relation.is_remote_null.add(local)
+        else:
+            if remote in self._relation.is_remote_null:
+                self._relation.is_remote_null.remove(local)
 
         return remote
 
@@ -196,7 +201,13 @@ class Reference(object):
             except ClassInfoError:
                 pass  # It might fail when remote is a tuple or a raw value.
             self._relation.link(local, remote, True)
-        self._relation.is_remote_null = remote is None
+
+        if remote is None:
+            self._relation.is_remote_null.add(local)
+        else:
+            if remote in self._relation.is_remote_null:
+                self._relation.is_remote_null.remove(local)
+
 
     def _build_relation(self):
         resolver = PropertyResolver(self, self._cls)
@@ -482,24 +493,23 @@ class Relation(object):
         self._l_to_r = {}
         self._r_to_l = {}
 
-        self.is_remote_null = False
+        self.is_remote_null = set()
 
     def _get_remote_with_cached(self, local):
         local_info = get_obj_info(local)
         try:
             obj = local_info[self]["remote"]
         except KeyError:
-            return None, self.is_remote_null
+            return None, (local in self.is_remote_null)
         remote_info = get_obj_info(obj)
         if remote_info.get("invalidated"):
-            if self.is_remote_null:
-                return None, self.is_remote_null
             try:
                 Store.of(obj)._validate_alive(remote_info)
+                self.is_remote_null.remove(local)
             except LostObjectError:
-                # self.is_remote_null = True
-                return None, self.is_remote_null
-        return obj, self.is_remote_null
+                self.is_remote_null.add(local)
+                return None, True  # yes, its None
+        return obj, (local in self.is_remote_null)
 
     def get_remote(self, local):
         """Return the remote object for this relation, using the local cache.
