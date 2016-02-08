@@ -2,6 +2,7 @@ import time
 import random
 import transaction
 
+from threading import current_thread
 from functools import wraps
 
 from zope.component import getUtility
@@ -44,12 +45,42 @@ class Transactor(object):
 
     sleep = time.sleep
     uniform = random.uniform
+    debug = False
 
     def __init__(self, threadpool, _transaction=None):
         self._threadpool = threadpool
         if _transaction is None:
             _transaction = transaction
         self._transaction = _transaction
+        self.threads_in_transact = {}
+
+    def begin_transaction(self, force=False):
+        if not self.in_transact or force:
+            self.rollback_transaction()
+            self._starting_transact()
+            return True
+        else:
+            return False
+
+    def commit_transaction(self):
+        self._transaction.commit()
+        self._leaving_transact()
+
+    def rollback_transaction(self):
+        self._transaction.abort()
+        self._leaving_transact()
+
+    @property
+    def in_transact(self):
+        return current_thread() in self.threads_in_transact
+
+    def _starting_transact(self):
+        self.threads_in_transact[current_thread()] = True
+
+    def _leaving_transact(self):
+        cur_thread = current_thread()
+        if self.cur_thread in self.threads_in_transact:
+            del self.threads_in_transact[cur_thread]
 
     def run(self, function, *args, **kwargs):
         """Run C{function} in a thread.
@@ -64,9 +95,30 @@ class Transactor(object):
         @param function: The function to run.
         @param args: Positional arguments to pass to C{function}.
         @param kwargs: Keyword arguments to pass to C{function}.
+        @param nested_transact: run nested transacts in the same thread
         @return: A C{Deferred} that will fire after the function has been run.
         """
+
         run_async = kwargs.pop('async', True)
+        nested_transact = kwargs.pop("nested", True)
+
+        if nested:
+            new_transct = self.begin_transaction(force=False)
+        else:
+            new_transact = True
+            self._starting_transact()
+
+        if not new_transact:
+            kwargs.update({"auto_commit": False})
+            if run_async:
+                return defer.maybeDeferred(
+                    self._wrap, function, *args, **kwargs)
+            else:
+                return self._wrap(function, *args, **kwargs)
+
+        else:
+            print "NewTransact" * 8
+
         if run_async:
             # Inline the reactor import here for sake of safeness, in case a
             # custom reactor needs to be installed
@@ -85,6 +137,7 @@ class Transactor(object):
                 result = function(*args, **kwargs)
                 if auto_commit:
                     self._transaction.commit()
+                    self.leaving_transact()
             except RETRIABLE_ERRORS, error:
                 if isinstance(error, DisconnectionError):
                     # If we got a disconnection, calling rollback may not be
