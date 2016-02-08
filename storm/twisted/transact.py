@@ -79,8 +79,8 @@ class Transactor(object):
 
     def _leaving_transact(self):
         cur_thread = current_thread()
-        if cur_thread in self.threads_in_transact:
-            self.threads_in_transact.pop(cur_thread)
+        if self.cur_thread in self.threads_in_transact:
+            del self.threads_in_transact[cur_thread]
 
     def run(self, function, *args, **kwargs):
         """Run C{function} in a thread.
@@ -116,6 +116,9 @@ class Transactor(object):
             else:
                 return self._wrap(function, *args, **kwargs)
 
+        else:
+            print "NewTransact" * 8
+
         if run_async:
             # Inline the reactor import here for sake of safeness, in case a
             # custom reactor needs to be installed
@@ -134,7 +137,7 @@ class Transactor(object):
                 result = function(*args, **kwargs)
                 if auto_commit:
                     self._transaction.commit()
-                    self._leaving_transact()
+                    self.leaving_transact()
             except RETRIABLE_ERRORS, error:
                 if isinstance(error, DisconnectionError):
                     # If we got a disconnection, calling rollback may not be
