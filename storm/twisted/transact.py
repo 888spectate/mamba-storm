@@ -8,10 +8,10 @@ from functools import wraps
 from zope.component import getUtility
 
 from storm.zope.interfaces import IZStorm
-from storm.exceptions import IntegrityError, DisconnectionError
+from storm.exceptions import DisconnectionError
 
 from twisted.internet.threads import deferToThreadPool
-
+from twisted.internet import defer
 
 RETRIABLE_ERRORS = (DisconnectionError, )
 try:
@@ -102,8 +102,8 @@ class Transactor(object):
         run_async = kwargs.pop('async', True)
         nested_transact = kwargs.pop("nested", True)
 
-        if nested:
-            new_transct = self.begin_transaction(force=False)
+        if nested_transact:
+            new_transact = self.begin_transaction(force=False)
         else:
             new_transact = True
             self._starting_transact()
