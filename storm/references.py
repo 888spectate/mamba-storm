@@ -169,8 +169,7 @@ class Reference(object):
         if remote is None:
             self._relation.is_remote_null.add(local)
         else:
-            if remote in self._relation.is_remote_null:
-                self._relation.is_remote_null.remove(local)
+            self._relation.is_remote_null.discard(local)
 
         return remote
 
@@ -205,9 +204,7 @@ class Reference(object):
         if remote is None:
             self._relation.is_remote_null.add(local)
         else:
-            if remote in self._relation.is_remote_null:
-                self._relation.is_remote_null.remove(local)
-
+            self._relation.is_remote_null.discard(local)
 
     def _build_relation(self):
         resolver = PropertyResolver(self, self._cls)
@@ -505,7 +502,7 @@ class Relation(object):
         if remote_info.get("invalidated"):
             try:
                 Store.of(obj)._validate_alive(remote_info)
-                self.is_remote_null.remove(local)
+                self.is_remote_null.discard(local)
             except LostObjectError:
                 self.is_remote_null.add(local)
                 return None, True  # yes, its None
