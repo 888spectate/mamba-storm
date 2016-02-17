@@ -123,20 +123,23 @@ class MySQLConnection(Connection):
                 exc.args[0] in (2006, 2013)) # (SERVER_GONE_ERROR, SERVER_LOST)
 
     def is_read_only_error(self, exc):
-        """(ER_CANT_LOCK, ER_OPEN_AS_READONLY,
+        """ https://dev.mysql.com/doc/refman/5.6/en/error-messages-server.html
+        (ER_CANT_LOCK, ER_OPEN_AS_READONLY,
             ER_OPTION_PREVENTS_STATEMENT, ER_INNODB_READ_ONLY)"""
-        return (isinstance(exc, OperationalError) and
-                exc.args[0] in (1015, 1036, 1290, 1874))
+        return isinstance(exc, OperationalError) and \
+            exc.args[0] in (1015, 1036, 1290, 1874)
 
     def _check_disconnect(self, function, *args, **kwargs):
-        """Run the given function, checking for database disconnections."""
+        """Run the given function, checking for database disconnections
+        or read only errors."""
         # Allow the caller to specify additional exception types that
-        # should be treated as possible disconnection errors.
-        extra_disconnection_errors = kwargs.pop(
-            'extra_disconnection_errors', ())
+        # should be treated as possible disconnection errors or other errors.
+
         try:
             return function(*args, **kwargs)
         except Exception, exc:
+            extra_disconnection_errors = kwargs.pop(
+                'extra_disconnection_errors', ())
             if self.is_disconnection_error(exc, extra_disconnection_errors):
                 self._state = STATE_DISCONNECTED
                 self._raw_connection = None
@@ -145,8 +148,7 @@ class MySQLConnection(Connection):
                 self._state = STATE_RECONNECT
                 self._raw_connection = None
                 raise ReadOnlyError(str(exc))
-            else:
-                raise
+            raise
 
 
 class MySQL(Database):
