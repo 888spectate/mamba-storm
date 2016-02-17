@@ -89,7 +89,8 @@ class Transactor(object):
             except RETRIABLE_ERRORS, error:
                 if isinstance(error, DisconnectionError) or \
                      isinstance(error, ReadOnlyError):
-                    # If we got a disconnection, calling rollback may not be
+                    # If we got a disconnection/read-only error,
+                    # calling rollback may not be
                     # enough because psycopg2 doesn't necessarily use the
                     # connection, so we call a dummy query to be sure that all
                     # the stores are correct.
