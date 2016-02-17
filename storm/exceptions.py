@@ -117,6 +117,10 @@ class DisconnectionError(OperationalError):
     pass
 
 
+class ReadOnlyError(OperationalError):
+    pass
+
+
 class TimeoutError(StormError):
     """Raised by timeout tracers when remining time is over."""
 
