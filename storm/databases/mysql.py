@@ -35,8 +35,10 @@ from storm.expr import (
     SQLRaw, SQLToken, is_safe_token)
 from storm.variables import Variable
 from storm.database import Database, Connection, Result
+from storm.database import STATE_DISCONNECTED, STATE_RECONNECT
 from storm.exceptions import (
-    install_exceptions, DatabaseModuleError, OperationalError)
+    install_exceptions, DatabaseModuleError, OperationalError,
+    ReadOnlyError, DisconnectionError)
 from storm.variables import IntVariable
 
 
@@ -119,6 +121,32 @@ class MySQLConnection(Connection):
         return (isinstance(exc, (OperationalError,
                                  extra_disconnection_errors)) and
                 exc.args[0] in (2006, 2013)) # (SERVER_GONE_ERROR, SERVER_LOST)
+
+    def is_read_only_error(self, exc):
+        """(ER_CANT_LOCK, ER_OPEN_AS_READONLY,
+            ER_OPTION_PREVENTS_STATEMENT, ER_INNODB_READ_ONLY)"""
+        return (isinstance(exc, OperationalError) and
+                exc.args[0] in (1015, 1036, 1290, 1874))
+
+    def _check_disconnect(self, function, *args, **kwargs):
+        """Run the given function, checking for database disconnections."""
+        # Allow the caller to specify additional exception types that
+        # should be treated as possible disconnection errors.
+        extra_disconnection_errors = kwargs.pop(
+            'extra_disconnection_errors', ())
+        try:
+            return function(*args, **kwargs)
+        except Exception, exc:
+            if self.is_disconnection_error(exc, extra_disconnection_errors):
+                self._state = STATE_DISCONNECTED
+                self._raw_connection = None
+                raise DisconnectionError(str(exc))
+            elif self.is_read_only_error(exc):
+                self._state = STATE_RECONNECT
+                self._raw_connection = None
+                raise ReadOnlyError(str(exc))
+            else:
+                raise
 
 
 class MySQL(Database):
