@@ -98,7 +98,7 @@ class Transactor(object):
                     for name, store in zstorm.iterstores():
                         try:
                             store.execute("SELECT 1")
-                        except (DisconnectionError, ReadOnlyError):
+                        except DisconnectionError:
                             pass
 
                 self._transaction.abort()
