@@ -145,7 +145,7 @@ class MySQLConnection(Connection):
                 self._raw_connection = None
                 raise DisconnectionError(str(exc))
             elif self.is_read_only_error(exc):
-                self._state = STATE_RECONNECT
+                self._state = STATE_DISCONNECTED
                 self._raw_connection = None
                 raise ReadOnlyError(str(exc))
             raise
