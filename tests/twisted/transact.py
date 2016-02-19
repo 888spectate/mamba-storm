@@ -382,31 +382,6 @@ class TransactorTest(TestCase, TestHelper):
         self.assertFailure(deferred, ReadOnlyError)
         return deferred
 
-    def test_run_with_readonly_error_in_execute_is_ignored(self):
-        """
-        If the given function raises a L{ReadOnlyError}, then a C{SELECT
-        1} will be executed in each registered store such that C{psycopg}
-        actually detects the disconnection. If another L{ReadOnlyError}
-        happens during C{execute}, then it is ignored.
-        """
-        self.transactor.retries = 0
-        zstorm = self.mocker.mock()
-        store1 = self.mocker.mock()
-        store2 = self.mocker.mock()
-        gu = self.mocker.replace(getUtility)
-        self.mocker.order()
-        self.expect(self.function()).throw(ReadOnlyError())
-        self.expect(gu(IZStorm)).result(zstorm)
-        self.expect(zstorm.iterstores()).result(iter((("store1", store1),
-                                                      ("store2", store2))))
-        self.expect(store1.execute("SELECT 1")).throw(ReadOnlyError())
-        self.expect(store2.execute("SELECT 1"))
-        self.expect(self.transaction.abort())
-        self.mocker.replay()
-        deferred = self.transactor.run(self.function)
-        self.assertFailure(deferred, ReadOnlyError)
-        return deferred
-
     def test_run_with_readonly_error_retries(self):
         """
         If the given function raises a L{ReadOnlyError}, then the
