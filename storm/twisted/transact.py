@@ -7,12 +7,13 @@ from functools import wraps
 from zope.component import getUtility
 
 from storm.zope.interfaces import IZStorm
-from storm.exceptions import IntegrityError, DisconnectionError
+from storm.exceptions import IntegrityError, DisconnectionError, ReadOnlyError
 
 from twisted.internet.threads import deferToThreadPool
 
 
-RETRIABLE_ERRORS = (DisconnectionError, IntegrityError)
+RETRIABLE_ERRORS = (DisconnectionError, IntegrityError, ReadOnlyError)
+
 try:
     from psycopg2.extensions import TransactionRollbackError
     RETRIABLE_ERRORS = RETRIABLE_ERRORS + (TransactionRollbackError,)
@@ -86,8 +87,10 @@ class Transactor(object):
                 if auto_commit:
                     self._transaction.commit()
             except RETRIABLE_ERRORS, error:
-                if isinstance(error, DisconnectionError):
-                    # If we got a disconnection, calling rollback may not be
+                if isinstance(error, DisconnectionError) or \
+                     isinstance(error, ReadOnlyError):
+                    # If we got a disconnection/read-only error,
+                    # calling rollback may not be
                     # enough because psycopg2 doesn't necessarily use the
                     # connection, so we call a dummy query to be sure that all
                     # the stores are correct.
@@ -97,6 +100,7 @@ class Transactor(object):
                             store.execute("SELECT 1")
                         except DisconnectionError:
                             pass
+
                 self._transaction.abort()
                 if retries < self.retries:
                     retries += 1

@@ -10,7 +10,8 @@ if has_transaction and has_zope_component and has_twisted:
     from zope.component import getUtility
 
     from storm.zope.interfaces import IZStorm
-    from storm.exceptions import IntegrityError, DisconnectionError
+    from storm.exceptions import IntegrityError, DisconnectionError, \
+        ReadOnlyError
 
     from storm.twisted.transact import Transactor, transact
     from storm.twisted.testing import FakeThreadPool
@@ -356,3 +357,63 @@ class TransactorTest(TestCase, TestHelper):
             self.assertIs(error, context.error)
 
         return deferred.addCallback(check)
+
+    def test_run_with_readonly_error(self):
+        """
+        If the given function raises a L{ReadOnlyError}, then a C{SELECT
+        1} will be executed in each registered store such that C{psycopg}
+        actually detects the disconnection.
+        """
+        self.transactor.retries = 0
+        self.mocker.order()
+        zstorm = self.mocker.mock()
+        store1 = self.mocker.mock()
+        store2 = self.mocker.mock()
+        gu = self.mocker.replace(getUtility)
+        self.expect(self.function()).throw(ReadOnlyError())
+        self.expect(gu(IZStorm)).result(zstorm)
+        self.expect(zstorm.iterstores()).result(iter((("store1", store1),
+                                                      ("store2", store2))))
+        self.expect(store1.execute("SELECT 1"))
+        self.expect(store2.execute("SELECT 1"))
+        self.expect(self.transaction.abort())
+        self.mocker.replay()
+        deferred = self.transactor.run(self.function)
+        self.assertFailure(deferred, ReadOnlyError)
+        return deferred
+
+    def test_run_with_readonly_error_retries(self):
+        """
+        If the given function raises a L{ReadOnlyError}, then the
+        function will be retried another two times before letting the exception
+        bubble up.
+        """
+        zstorm = self.mocker.mock()
+        gu = self.mocker.replace(getUtility)
+        self.transactor.sleep = self.mocker.mock()
+        self.transactor.uniform = self.mocker.mock()
+        self.mocker.order()
+
+        self.expect(self.function()).throw(ReadOnlyError())
+        self.expect(gu(IZStorm)).result(zstorm)
+        self.expect(zstorm.iterstores()).result(iter(()))
+        self.expect(self.transaction.abort())
+        self.expect(self.transactor.uniform(1, 2 ** 1)).result(1)
+        self.expect(self.transactor.sleep(1))
+
+        self.expect(self.function()).throw(ReadOnlyError())
+        self.expect(gu(IZStorm)).result(zstorm)
+        self.expect(zstorm.iterstores()).result(iter(()))
+        self.expect(self.transaction.abort())
+        self.expect(self.transactor.uniform(1, 2 ** 2)).result(2)
+        self.expect(self.transactor.sleep(2))
+
+        self.expect(self.function()).throw(ReadOnlyError())
+        self.expect(gu(IZStorm)).result(zstorm)
+        self.expect(zstorm.iterstores()).result(iter(()))
+        self.expect(self.transaction.abort())
+        self.mocker.replay()
+
+        deferred = self.transactor.run(self.function)
+        self.assertFailure(deferred, ReadOnlyError)
+        return deferred
