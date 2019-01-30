@@ -156,12 +156,13 @@ class DebugTracerTest(TestHelper):
         self.assertEqual(tracer._stream, marker)
 
     def test_connection_raw_execute(self):
+        connection = "CONNECTION"
+        cid = id(connection)
         self.stream.write(
-            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n")
+            "[04:05:06.000007] [M] [%s] EXECUTE: 'STATEMENT', ('PARAM',)\n" % cid)
         self.stream.flush()
         self.mocker.replay()
 
-        connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
         params = [self.variable]
@@ -170,12 +171,13 @@ class DebugTracerTest(TestHelper):
                                            statement, params)
 
     def test_connection_raw_execute_with_non_variable(self):
+        connection = "CONNECTION"
+        cid = id(connection)
         self.stream.write(
-            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM', 1)\n")
+            "[04:05:06.000007] [M] [%s] EXECUTE: 'STATEMENT', ('PARAM', 1)\n" % cid)
         self.stream.flush()
         self.mocker.replay()
 
-        connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
         params = [self.variable, 1]
@@ -184,11 +186,12 @@ class DebugTracerTest(TestHelper):
                                            statement, params)
 
     def test_connection_raw_execute_error(self):
-        self.stream.write("[04:05:06.000007] ERROR: ERROR\n")
+        connection = "CONNECTION"
+        cid = id(connection)
+        self.stream.write("[04:05:06.000007] [M] [%s] ERROR: ERROR\n" % cid)
         self.stream.flush()
         self.mocker.replay()
 
-        connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
         params = "PARAMS"
@@ -198,11 +201,12 @@ class DebugTracerTest(TestHelper):
                                                  statement, params, error)
 
     def test_connection_raw_execute_success(self):
-        self.stream.write("[04:05:06.000007] DONE\n")
+        connection = "CONNECTION"
+        cid = id(connection)
+        self.stream.write("[04:05:06.000007] [M] [%s] DONE\n" % cid)
         self.stream.flush()
         self.mocker.replay()
 
-        connection = "CONNECTION"
         raw_cursor = "RAW_CURSOR"
         statement = "STATEMENT"
         params = "PARAMS"
@@ -211,20 +215,20 @@ class DebugTracerTest(TestHelper):
                                                    statement, params)
 
     def test_connection_commit(self):
-        self.stream.write("[04:05:06.000007] COMMIT xid=None\n")
+        connection = "CONNECTION"
+        cid = id(connection)
+        self.stream.write("[04:05:06.000007] [M] [%s] COMMIT xid=None\n" % cid)
         self.stream.flush()
         self.mocker.replay()
-
-        connection = "CONNECTION"
 
         self.tracer.connection_commit(connection)
 
     def test_connection_rollback(self):
-        self.stream.write("[04:05:06.000007] ROLLBACK xid=None\n")
+        connection = "CONNECTION"
+        cid = id(connection)
+        self.stream.write("[04:05:06.000007] [M] [%s] ROLLBACK xid=None\n" % cid)
         self.stream.flush()
         self.mocker.replay()
-
-        connection = "CONNECTION"
 
         self.tracer.connection_rollback(connection)
 
