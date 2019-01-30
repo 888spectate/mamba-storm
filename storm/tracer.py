@@ -29,8 +29,8 @@ class DebugTracer(object):
         # main thread (M) or child (C)
         thread_type = 'M' if self._is_main_thread() else 'C'
         connection_id = self._get_connection_id(connection)
-        prefix = "[%s] [%s] [%s]" % (now, thread_type, connection_id)
-        self._stream.write("%s %s\n" % (prefix, msg) % args)
+        msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
+        self._stream.write(msg % args)
         self._stream.flush()
 
     def connection_raw_execute(self, connection, raw_cursor, statement,
