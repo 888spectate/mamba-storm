@@ -17,14 +17,19 @@ class DebugTracer(object):
         self._stream = stream
 
     @staticmethod
-    def is_main_thread():
+    def _is_main_thread():
         return isinstance(threading.current_thread(), threading._MainThread)
 
+    @staticmethod
+    def _get_connection_id(connection):
+        return id(connection)
+
     def _write(self, connection, msg, *args):
-        # main thread (M) or child (C)
-        thread_type = 'M' if self.is_main_thread() else 'C'
         now = datetime.now().isoformat()[11:]
-        prefix = "[%s] [%s] [%s]" % (now, thread_type, id(connection))
+        # main thread (M) or child (C)
+        thread_type = 'M' if self._is_main_thread() else 'C'
+        connection_id = self._get_connection_id(connection)
+        prefix = "[%s] [%s] [%s]" % (now, thread_type, connection_id)
         self._stream.write("%s %s\n" % (prefix, msg) % args)
         self._stream.flush()
 
