@@ -130,6 +130,7 @@ class DebugTracerTest(TestHelper):
         super(DebugTracerTest, self).setUp()
         self.stream = self.mocker.mock(file)
         self.tracer = DebugTracer(self.stream)
+        self.tracer._get_connection_id = lambda c: 123456789
 
         datetime_mock = self.mocker.replace("datetime.datetime")
         datetime_mock.now()
@@ -157,7 +158,7 @@ class DebugTracerTest(TestHelper):
 
     def test_connection_raw_execute(self):
         self.stream.write(
-            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM',)\n")
+            "[04:05:06.000007] [M] [123456789] EXECUTE: 'STATEMENT', ('PARAM',)\n")
         self.stream.flush()
         self.mocker.replay()
 
@@ -171,7 +172,7 @@ class DebugTracerTest(TestHelper):
 
     def test_connection_raw_execute_with_non_variable(self):
         self.stream.write(
-            "[04:05:06.000007] EXECUTE: 'STATEMENT', ('PARAM', 1)\n")
+            "[04:05:06.000007] [M] [123456789] EXECUTE: 'STATEMENT', ('PARAM', 1)\n")
         self.stream.flush()
         self.mocker.replay()
 
@@ -184,7 +185,7 @@ class DebugTracerTest(TestHelper):
                                            statement, params)
 
     def test_connection_raw_execute_error(self):
-        self.stream.write("[04:05:06.000007] ERROR: ERROR\n")
+        self.stream.write("[04:05:06.000007] [M] [123456789] ERROR: ERROR\n")
         self.stream.flush()
         self.mocker.replay()
 
@@ -198,7 +199,7 @@ class DebugTracerTest(TestHelper):
                                                  statement, params, error)
 
     def test_connection_raw_execute_success(self):
-        self.stream.write("[04:05:06.000007] DONE\n")
+        self.stream.write("[04:05:06.000007] [M] [123456789] DONE\n")
         self.stream.flush()
         self.mocker.replay()
 
@@ -211,7 +212,7 @@ class DebugTracerTest(TestHelper):
                                                    statement, params)
 
     def test_connection_commit(self):
-        self.stream.write("[04:05:06.000007] COMMIT xid=None\n")
+        self.stream.write("[04:05:06.000007] [M] [123456789] COMMIT xid=None\n")
         self.stream.flush()
         self.mocker.replay()
 
@@ -220,7 +221,7 @@ class DebugTracerTest(TestHelper):
         self.tracer.connection_commit(connection)
 
     def test_connection_rollback(self):
-        self.stream.write("[04:05:06.000007] ROLLBACK xid=None\n")
+        self.stream.write("[04:05:06.000007] [M] [123456789] ROLLBACK xid=None\n")
         self.stream.flush()
         self.mocker.replay()
 

@@ -16,9 +16,25 @@ class DebugTracer(object):
             stream = sys.stderr
         self._stream = stream
 
+    @staticmethod
+    def _is_main_thread():
+        return isinstance(threading.current_thread(), threading._MainThread)
+
+    @staticmethod
+    def _get_connection_id(connection):
+        return id(connection)
+
+    def _write(self, connection, msg, *args):
+        now = datetime.now().isoformat()[11:]
+        # main thread (M) or child (C)
+        thread_type = 'M' if self._is_main_thread() else 'C'
+        connection_id = self._get_connection_id(connection)
+        msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
+        self._stream.write(msg % args)
+        self._stream.flush()
+
     def connection_raw_execute(self, connection, raw_cursor, statement,
                                params):
-        time = datetime.now().isoformat()[11:]
         raw_params = []
         for param in params:
             if isinstance(param, Variable):
@@ -26,31 +42,21 @@ class DebugTracer(object):
             else:
                 raw_params.append(param)
         raw_params = tuple(raw_params)
-        self._stream.write(
-            "[%s] EXECUTE: %r, %r\n" % (time, statement, raw_params))
-        self._stream.flush()
+        self._write(connection, "EXECUTE: %r, %r", statement, raw_params)
 
     def connection_raw_execute_error(self, connection, raw_cursor,
                                      statement, params, error):
-        time = datetime.now().isoformat()[11:]
-        self._stream.write("[%s] ERROR: %s\n" % (time, error))
-        self._stream.flush()
+        self._write(connection, "ERROR: %s", error)
 
     def connection_raw_execute_success(self, connection, raw_cursor,
                                        statement, params):
-        time = datetime.now().isoformat()[11:]
-        self._stream.write("[%s] DONE\n" % time)
-        self._stream.flush()
+        self._write(connection, "DONE")
 
     def connection_commit(self, connection, xid=None):
-        time = datetime.now().isoformat()[11:]
-        self._stream.write("[%s] COMMIT xid=%s\n" % (time, xid))
-        self._stream.flush()
+        self._write(connection, "COMMIT xid=%s", xid)
 
     def connection_rollback(self, connection, xid=None):
-        time = datetime.now().isoformat()[11:]
-        self._stream.write("[%s] ROLLBACK xid=%s\n" % (time, xid))
-        self._stream.flush()
+        self._write(connection, "ROLLBACK xid=%s", xid)
 
 
 class TimeoutTracer(object):
