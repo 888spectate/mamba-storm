@@ -36,7 +36,8 @@ class DebugTracer(object):
         if kwargs.get("log_time"):
 
             try:
-                elapsed_time = (now - self._connection2start_time.get(connection_id, now)).total_seconds()
+                start_time = self._connection2start_time[connection_id]
+                elapsed_time = (now - start_time).total_seconds()
                 self._connection2start_time.pop(connection_id, None)
             except:
                 elapsed_time = -1
