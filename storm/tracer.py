@@ -25,7 +25,7 @@ class DebugTracer(object):
     def _get_connection_id(connection):
         return id(connection)
 
-    def _write(self, connection, msg, *args, print_time=False):
+    def _write(self, connection, msg, *args, **kwargs):
         # main thread (M) or child (C)
         thread_type = 'M' if self._is_main_thread() else 'C'
         connection_id = self._get_connection_id(connection)
@@ -36,7 +36,7 @@ class DebugTracer(object):
         msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
         self._stream.write(msg % args)
 
-        if print_time:
+        if kwargs.get("log_time"):
             msg = "TIME: %i" %(now - self._connection2start_time[connection_id])
             msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
             del self._connection2start_time[connection_id]
@@ -57,17 +57,17 @@ class DebugTracer(object):
 
     def connection_raw_execute_error(self, connection, raw_cursor,
                                      statement, params, error):
-        self._write(connection, "ERROR: %s", error, print_time=True)
+        self._write(connection, "ERROR: %s", error, log_time=True)
 
     def connection_raw_execute_success(self, connection, raw_cursor,
                                        statement, params):
-        self._write(connection, "DONE", print_time=True)
+        self._write(connection, "DONE", log_time=True)
 
     def connection_commit(self, connection, xid=None):
-        self._write(connection, "COMMIT xid=%s", xid, print_time=True)
+        self._write(connection, "COMMIT xid=%s", xid, log_time=True)
 
     def connection_rollback(self, connection, xid=None):
-        self._write(connection, "ROLLBACK xid=%s", xid, print_time=True)
+        self._write(connection, "ROLLBACK xid=%s", xid, log_time=True)
 
 
 class TimeoutTracer(object):
