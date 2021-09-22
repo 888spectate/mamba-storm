@@ -37,7 +37,8 @@ class DebugTracer(object):
         self._stream.write(msg % args)
 
         if kwargs.get("log_time"):
-            msg = "TIME: %i" %(now - self._connection2start_time[connection_id])
+            elapsed_time = (now - self._connection2start_time[connection_id]).total_seconds()
+            msg = "TIME: %.4f" %(elapsed_time)
             msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
             del self._connection2start_time[connection_id]
 
