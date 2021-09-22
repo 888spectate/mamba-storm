@@ -2,6 +2,7 @@ from datetime import datetime
 import re
 import sys
 import threading
+from twisted.python import log
 
 # Circular import: imported at the end of the module.
 # from storm.database import convert_param_marks
@@ -40,6 +41,7 @@ class DebugTracer(object):
             elapsed_time = (now - self._connection2start_time[connection_id]).total_seconds()
             msg = "TIME: %.4f" %(elapsed_time)
             msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
+            log("Deleting time for conn {}".format(connection))
             del self._connection2start_time[connection_id]
 
         self._stream.flush()
@@ -53,22 +55,23 @@ class DebugTracer(object):
             else:
                 raw_params.append(param)
         raw_params = tuple(raw_params)
+        log("Taken time for conn {}".format(connection))
         self._connection2start_time[self._get_connection_id(connection)] = datetime.now()
         self._write(connection, "EXECUTE: %r, %r", statement, raw_params)
 
     def connection_raw_execute_error(self, connection, raw_cursor,
                                      statement, params, error):
-        self._write(connection, "ERROR: %s", error, log_time=True)
+        self._write(connection, "ERROR: %s", error)
 
     def connection_raw_execute_success(self, connection, raw_cursor,
                                        statement, params):
         self._write(connection, "DONE", log_time=True)
 
     def connection_commit(self, connection, xid=None):
-        self._write(connection, "COMMIT xid=%s", xid, log_time=True)
+        self._write(connection, "COMMIT xid=%s", xid)
 
     def connection_rollback(self, connection, xid=None):
-        self._write(connection, "ROLLBACK xid=%s", xid, log_time=True)
+        self._write(connection, "ROLLBACK xid=%s", xid)
 
 
 class TimeoutTracer(object):
