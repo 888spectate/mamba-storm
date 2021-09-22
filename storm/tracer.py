@@ -33,17 +33,22 @@ class DebugTracer(object):
         now = datetime.now()
         now_iso = now.isoformat()[11:]
 
-        msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
-        self._stream.write(msg % args)
-
         if kwargs.get("log_time"):
-            elapsed_time = (now - self._connection2start_time[connection_id]).total_seconds()
-            msg = "TIME: %.4f" %(elapsed_time)
-            msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
-            self._stream.write(msg % args)
-            print("Deleting time for conn {}".format(connection))
-            del self._connection2start_time[connection_id]
 
+            try:
+                elapsed_time = (now - self._connection2start_time.get(connection_id, now)).total_seconds()
+                self._connection2start_time.pop(connection_id, None)
+            except:
+                elapsed_time = -1
+
+            logline = "[%s] [%s] [%s] %s TIME: %.4f\n"
+            params = (now, thread_type, connection_id, msg, elapsed_time)
+        else:
+            logline = "[%s] [%s] [%s] %s\n"
+            params = (now, thread_type, connection_id, msg)
+
+        msg = logline % params
+        self._stream.write(msg % args)
         self._stream.flush()
 
     def connection_raw_execute(self, connection, raw_cursor, statement,
@@ -55,7 +60,6 @@ class DebugTracer(object):
             else:
                 raw_params.append(param)
         raw_params = tuple(raw_params)
-        print("Taken time for conn {}".format(connection))
         self._connection2start_time[self._get_connection_id(connection)] = datetime.now()
         self._write(connection, "EXECUTE: %r, %r", statement, raw_params)
 
