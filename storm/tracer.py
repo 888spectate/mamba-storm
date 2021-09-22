@@ -43,10 +43,11 @@ class DebugTracer(object):
                 elapsed_time = -1
 
             logline = "[%s] [%s] [%s] %s TIME: %.4f\n"
-            params = (now, thread_type, connection_id, msg, elapsed_time)
+            params = (now_iso, thread_type, connection_id, msg, elapsed_time)
+
         else:
             logline = "[%s] [%s] [%s] %s\n"
-            params = (now, thread_type, connection_id, msg)
+            params = (now_iso, thread_type, connection_id, msg)
 
         msg = logline % params
         self._stream.write(msg % args)

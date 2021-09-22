@@ -131,11 +131,14 @@ class DebugTracerTest(TestHelper):
         self.stream = self.mocker.mock(file)
         self.tracer = DebugTracer(self.stream)
         self.tracer._get_connection_id = lambda c: 123456789
+        self.tracer._connection2start_time[123456789] = (
+            datetime.datetime(1, 2, 3, 4, 5, 6, 7)
+        )
 
         datetime_mock = self.mocker.replace("datetime.datetime")
         datetime_mock.now()
         self.mocker.result(datetime.datetime(1, 2, 3, 4, 5, 6, 7))
-        self.mocker.count(0, 1)
+        self.mocker.count(0, 2)
 
         self.variable = MockVariable("PARAM")
 
@@ -170,6 +173,7 @@ class DebugTracerTest(TestHelper):
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)
 
+
     def test_connection_raw_execute_with_non_variable(self):
         self.stream.write(
             "[04:05:06.000007] [M] [123456789] EXECUTE: 'STATEMENT', ('PARAM', 1)\n")
@@ -183,6 +187,7 @@ class DebugTracerTest(TestHelper):
 
         self.tracer.connection_raw_execute(connection, raw_cursor,
                                            statement, params)
+
 
     def test_connection_raw_execute_error(self):
         self.stream.write("[04:05:06.000007] [M] [123456789] ERROR: ERROR\n")
@@ -199,7 +204,7 @@ class DebugTracerTest(TestHelper):
                                                  statement, params, error)
 
     def test_connection_raw_execute_success(self):
-        self.stream.write("[04:05:06.000007] [M] [123456789] DONE\n")
+        self.stream.write("[04:05:06.000007] [M] [123456789] DONE TIME: 0.0000\n")
         self.stream.flush()
         self.mocker.replay()
 
@@ -228,7 +233,6 @@ class DebugTracerTest(TestHelper):
         connection = "CONNECTION"
 
         self.tracer.connection_rollback(connection)
-
 
 class TimeoutTracerTestBase(TestHelper):
 
