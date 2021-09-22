@@ -246,9 +246,7 @@ class TimelineTracer(BaseStatementTracer):
             return
         connection_name = getattr(connection, 'name', '<unknown>')
         action = timeline.start(self.prefix + connection_name, statement)
-        #start_time = time.time()
         self.threadinfo.action = action
-        #self.threadinfo.start_time = start_time
 
     def connection_raw_execute_success(self, connection, raw_cursor,
                                        statement, params):
