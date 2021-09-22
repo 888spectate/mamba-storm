@@ -40,6 +40,7 @@ class DebugTracer(object):
             elapsed_time = (now - self._connection2start_time[connection_id]).total_seconds()
             msg = "TIME: %.4f" %(elapsed_time)
             msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
+            self._stream.write(msg % args)
             print("Deleting time for conn {}".format(connection))
             del self._connection2start_time[connection_id]
 
