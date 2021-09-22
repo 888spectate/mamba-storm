@@ -15,6 +15,7 @@ class DebugTracer(object):
         if stream is None:
             stream = sys.stderr
         self._stream = stream
+        self._connection2start_time = {}
 
     @staticmethod
     def _is_main_thread():
@@ -24,12 +25,30 @@ class DebugTracer(object):
     def _get_connection_id(connection):
         return id(connection)
 
-    def _write(self, connection, msg, *args):
-        now = datetime.now().isoformat()[11:]
+    def _write(self, connection, msg, *args, **kwargs):
         # main thread (M) or child (C)
         thread_type = 'M' if self._is_main_thread() else 'C'
         connection_id = self._get_connection_id(connection)
-        msg = "[%s] [%s] [%s] %s\n" % (now, thread_type, connection_id, msg)
+
+        now = datetime.now()
+        now_iso = now.isoformat()[11:]
+
+        if kwargs.get("log_time"):
+
+            try:
+                start_time = self._connection2start_time[connection_id]
+                elapsed_time = (now - start_time).total_seconds()
+                self._connection2start_time.pop(connection_id, None)
+            except:
+                elapsed_time = -1
+
+            logline = "[%s] [%s] [%s] %s TIME: %.4f\n"
+            params = (now, thread_type, connection_id, msg, elapsed_time)
+        else:
+            logline = "[%s] [%s] [%s] %s\n"
+            params = (now, thread_type, connection_id, msg)
+
+        msg = logline % params
         self._stream.write(msg % args)
         self._stream.flush()
 
@@ -42,6 +61,7 @@ class DebugTracer(object):
             else:
                 raw_params.append(param)
         raw_params = tuple(raw_params)
+        self._connection2start_time[self._get_connection_id(connection)] = datetime.now()
         self._write(connection, "EXECUTE: %r, %r", statement, raw_params)
 
     def connection_raw_execute_error(self, connection, raw_cursor,
@@ -50,7 +70,7 @@ class DebugTracer(object):
 
     def connection_raw_execute_success(self, connection, raw_cursor,
                                        statement, params):
-        self._write(connection, "DONE")
+        self._write(connection, "DONE", log_time=True)
 
     def connection_commit(self, connection, xid=None):
         self._write(connection, "COMMIT xid=%s", xid)
@@ -225,7 +245,9 @@ class TimelineTracer(BaseStatementTracer):
             return
         connection_name = getattr(connection, 'name', '<unknown>')
         action = timeline.start(self.prefix + connection_name, statement)
+        #start_time = time.time()
         self.threadinfo.action = action
+        #self.threadinfo.start_time = start_time
 
     def connection_raw_execute_success(self, connection, raw_cursor,
                                        statement, params):
