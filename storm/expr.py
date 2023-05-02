@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-from decimal import Decimal
+from cdecimal import Decimal
 from datetime import datetime, date, time, timedelta
 from weakref import WeakKeyDictionary
 from copy import copy

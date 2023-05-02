@@ -21,7 +21,7 @@
 #
 
 from cStringIO import StringIO
-import decimal
+import cdecimal as decimal
 import gc
 import operator
 from uuid import uuid4

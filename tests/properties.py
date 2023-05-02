@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 from datetime import datetime, date, time, timedelta
-from decimal import Decimal as decimal
+from cdecimal import Decimal as decimal
 import gc
 try:
     import uuid
