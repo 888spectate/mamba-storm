@@ -87,11 +87,14 @@ class Transactor(object):
                 if auto_commit:
                     self._transaction.commit()
             except RETRIABLE_ERRORS, error:
+                is_operational = False
                 if isinstance(error, OperationalError):
                     # Check if the error code is not 1213 (Deadlock found when trying to get lock), don't retry.
                     # we only retry for 1213
                     if not error.args or error.args[0] != 1213:
                         raise
+                    print "XXXXX OperationalError", error
+                    is_operational = True
                 if isinstance(error, DisconnectionError) or \
                      isinstance(error, ReadOnlyError):
                     # If we got a disconnection/read-only error,
@@ -110,6 +113,8 @@ class Transactor(object):
                 if retries < self.retries:
                     retries += 1
                     if self.on_retry is not None:
+                        if is_operational:
+                            print "XXXXX Retrying:", retries
                         context = RetryContext(function, args, kwargs, retries,
                                                error)
                         self.on_retry(context)
