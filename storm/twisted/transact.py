@@ -7,12 +7,12 @@ from functools import wraps
 from zope.component import getUtility
 
 from storm.zope.interfaces import IZStorm
-from storm.exceptions import IntegrityError, DisconnectionError, ReadOnlyError
+from storm.exceptions import IntegrityError, DisconnectionError, ReadOnlyError, OperationalError
 
 from twisted.internet.threads import deferToThreadPool
 
 
-RETRIABLE_ERRORS = (DisconnectionError, IntegrityError, ReadOnlyError)
+RETRIABLE_ERRORS = (DisconnectionError, IntegrityError, ReadOnlyError, OperationalError)
 
 try:
     from psycopg2.extensions import TransactionRollbackError
@@ -87,6 +87,11 @@ class Transactor(object):
                 if auto_commit:
                     self._transaction.commit()
             except RETRIABLE_ERRORS, error:
+                if isinstance(error, OperationalError):
+                    # Check if the error code is not 1213 (Deadlock found when trying to get lock), don't retry.
+                    # we only retry for 1213
+                    if not error.args or error.args[0] != 1213:
+                        raise
                 if isinstance(error, DisconnectionError) or \
                      isinstance(error, ReadOnlyError):
                     # If we got a disconnection/read-only error,
